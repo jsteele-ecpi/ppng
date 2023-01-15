@@ -1,10 +1,10 @@
 # PPNG
-	a primitive program that probes .png image files.
+	A primitive program that probes, and injects, data in .png image files.
+  Inspired by Tsoding Daily [Hiding Information Inside of PNG](https://www.youtube.com/watch?v=M9Zwulv3xz8)	
+	This is intended for educational purposes only, to appease my curiosity. 
 
 # quick start
 ```sh
 $ ./build.sh
-$ ./ppng <input_file.png> 
+$ ./ppng <input_file.png> [output_file] 
 ```
-# notes
-	this is intended for educational purposes only. I hold no responsibility for any misuse or misconduct. General "don't be a dick" rules apply.
