@@ -7,13 +7,15 @@
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #define PNG_SIG_CAP 8
 #define PNG_DAT_CAP (64*1024)
 
 const uint8_t png_sig[] = {137, 80, 78, 71, 13, 10, 26, 10};
+bool quit = false;
 
-//would this be a better approach? Look into small helper func
+// Ideally, I'd like to use this struct as a primitive obect to handle the chuncks better
 struct Chunk{
 	uint32_t length;
 	uint32_t type;
@@ -26,14 +28,15 @@ void read_bytes(FILE *file, void *buf, size_t buf_cap)
 	size_t n = fread(buf, buf_cap, 1, file);
 	if(n!=1){
 		if(ferror(file)){
-			fprintf(stderr, "ERROR: could not read PNG Header: %s\n", 
-				strerror(errno));
+			fprintf(stderr, "ERROR: could not read %zu bytes from file: %s\n", 
+				buf_cap, strerror(errno));
 			exit(1);
 		} else if(feof(file)){
-				fprintf(stderr, "ERROR: reached end of file (EOF)\n");
+				fprintf(stderr, "ERROR: could not read %zu  bytes from file: reached end of file (EOF)\n", buf_cap);
 				exit(1);
 		} else{
-				assert(0&&"unreachable");
+				quit = true;
+				//assert(0 && "unreachable");
 		}
 	}
 }
@@ -46,6 +49,7 @@ void print_bytes(uint8_t *buf, size_t buf_cap)
 	printf("\n");
 }
 
+// Need to reverse the bytes due to png format being *big endian*
 void flip_bytes(void *buf_, size_t buf_cap)
 {
 	uint8_t *buf = buf_;
@@ -56,16 +60,26 @@ void flip_bytes(void *buf_, size_t buf_cap)
 	}
 }
 
-void skip_bytes(void *buf_, size_t offset, size_t buf_cap)
+// In case we aren't interested in a series of bytes/chunks
+void skip_bytes(void *buf_, size_t size)
 {
-	
+	//TODO: finish this function to skip through chunks.
+
+	if(fseek(buf_, size, SEEK_CUR) < 0) {
+		fprintf(stderr, "ERROR: could not skip bytes: %s\n", strerror(errno));
+		exit(1);
+	}
 }
+
+
+
 
 int main(int argc, char **argv)
 {
 	(void) argc;
 
-	//assert that there was an arg provided; the arg array providesa null terminator, allowing us to step through args until reaching NULL
+	//assert that there was an arg provided; the arg array provides a null terminator, 
+	//allowing us to step through args until reaching NULL
 	assert(*argv != NULL);
 
 	//take 1st arg provided, then increment the arg count
@@ -108,29 +122,47 @@ int main(int argc, char **argv)
 	//capture first 8 bytes and store as array?
 	uint8_t sig[PNG_SIG_CAP];
 	read_bytes(input_file, sig, PNG_SIG_CAP);
-	printf("PNG Signature:\n");
+	printf("PNG Sig Bytes: ");
 	print_bytes(sig, PNG_SIG_CAP);
+	//printf("PNG Signature: %.*s\n", PNG_SIG_CAP, sig); 
+
 
 	if(memcmp(sig, png_sig, PNG_SIG_CAP)!=0){
 		fprintf(stderr, "ERROR: %s does not appear to be a valid PNG image\n", in_filepath);
 		exit(1);
 	} 
-	uint32_t chunk_len;
-	read_bytes(input_file, &chunk_len, sizeof(chunk_len));
-	flip_bytes(&chunk_len, sizeof(chunk_len));
-	printf("Chunk Length (data): %u\n", chunk_len);
 
-	uint8_t chunk_type[4];
-	read_bytes(input_file, chunk_type, sizeof(chunk_type));
-	printf("Chunk Type : %.*s\n", (int)sizeof(chunk_type), chunk_type); 
-	printf("Chunk Bytes: ");
-	print_bytes(chunk_type, sizeof(chunk_type));
+  while(!quit){
+		uint32_t chunk_len;
+		read_bytes(input_file, &chunk_len, sizeof(chunk_len));
+		flip_bytes(&chunk_len, sizeof(chunk_len));
+		printf("Chunk Length (data): %u\n", chunk_len);
 
-	uint8_t chunk_data[chunk_len];
-	read_bytes(input_file, chunk_type, sizeof(chunk_type));
-	print_bytes(chunk_data, sizeof(chunk_data));
+		uint8_t chunk_type[4];
+		read_bytes(input_file, chunk_type, sizeof(chunk_type));
+		printf("Chunk Bytes: ");
+		print_bytes(chunk_type, sizeof(chunk_type));
+		printf("Chunk Type : %.*s (0x%08X)\n",
+						(int)sizeof(chunk_type), chunk_type, *(uint32_t*) chunk_type); 
 
+		uint8_t chunk_data[chunk_len];
+		read_bytes(input_file, chunk_data, sizeof(chunk_data));
+		//print_bytes(chunk_data, sizeof(chunk_data));
+		//printf("Chunk Data : %.*s\n", (int)sizeof(chunk_data), chunk_data); 
+		//printf("Chunk Data : "); 
+		//flip_bytes(&chunk_data, sizeof(chunk_data));
+		//print_bytes(chunk_data, sizeof(chunk_data));
+		//printf("Chunk Data : %.*s\n", (int)sizeof(chunk_data), chunk_data); 
 
+		uint32_t chunk_crc;
+		read_bytes(input_file, &chunk_crc, sizeof(chunk_crc));
+		printf("Chunk CRC: 0x%08X\n", chunk_crc);
+		printf("---------------------------------\n");
+		
+		if(*(uint32_t*)chunk_type == 0x444E4549){
+			quit = true;
+		}
+  }
 
 	//printf("%s is a valid PNG image\n", in_filepath);
 	fclose(input_file);
