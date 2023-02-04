@@ -1,5 +1,5 @@
 # PPNG
-	A primitive program that probes into.png image files.
+	A primitive program that probes into .png image files.
 	
 *This is intended for educational purposes only, solely to appease my curiosity, and is a work in progress.
 
