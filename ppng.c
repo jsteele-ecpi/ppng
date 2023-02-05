@@ -77,7 +77,7 @@ void flip_bytes(void *buf_, size_t buf_cap)
 // In case we aren't interested in a series of bytes/chunks
 void skip_bytes(void *buf_, size_t size)
 {
-	//TODO: finish this function to skip through chunks.
+//TODO: finish this function to skip through chunks.
 
 	if(fseek(buf_, size, SEEK_CUR) < 0) {  // skip relative to current cursor position
 		fprintf(stderr, "ERROR: could not skip bytes: %s\n", strerror(errno));
@@ -148,12 +148,13 @@ int main(int argc, char **argv)
 	//the following decimal values: 137 80 78 71 13 10 26 10
 	
 	//capture first 8 bytes and store as array
-	//TODO: consider wrapping this up in a function
+//TODO: consider wrapping this up in a function
 	uint8_t sig[PNG_SIG_CAP];
 	read_bytes(input_file, sig, PNG_SIG_CAP);
 	printf("PNG Sig Bytes: ");
 	print_bytes(sig, PNG_SIG_CAP);
 	printf("PNG Signature: %.*s\n", 4, (char*)sig); 
+	printf("==================================\n");
 
   //compare the memory to verify if proper PNG file
 	if(memcmp(sig, png_sig, PNG_SIG_CAP)!=0){
@@ -162,6 +163,9 @@ int main(int argc, char **argv)
 	} 
 
   while(!quit){
+
+		// ---| length (data) | type | data | crc |---
+
 		uint32_t chunk_len;
 		read_bytes(input_file, &chunk_len, sizeof(chunk_len));
 		flip_bytes(&chunk_len, sizeof(chunk_len));
@@ -181,13 +185,20 @@ int main(int argc, char **argv)
 		//immediately dereferencing it - #type_punning
 		if(*(uint32_t*)chunk_type == 0x74584574){
 
-			//TODO: figure out how to display the contents, human readable
-
-			//print_bytes(chunk_data, sizeof(chunk_data));
-		  printf("Chunk Data   : %.*s\n", (int)sizeof(chunk_data), chunk_data); 
 			//flip_bytes(&chunk_data, sizeof(chunk_data));
 			//print_bytes(chunk_data, sizeof(chunk_data));
-			printf("Chunk Text   : %.*s\n", (int)sizeof(chunk_data), chunk_data); 
+			printf("Chunk Data   : ");
+
+			for(int i = 0; i < (int)sizeof(chunk_data); i++){
+
+//TODO: create char[] to store bytes as ascii and use as 'string'
+
+				//if(i % 16 == 0)printf("\n");
+
+				printf("%c", (char)chunk_data[i]);
+				//printf("Chunk Data   : %.*s\n", (int)sizeof(chunk_data), chunk_data); 
+			}
+			printf("\n");
 		}
 
 
