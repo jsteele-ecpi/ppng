@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 		exit(1);
 	} 
 
-  while(!quit){
+  while(!quit){ // global boolean for dirty control
 
 		/* chunk Structure: ---| length (data) | type | data | crc |--- */
 
