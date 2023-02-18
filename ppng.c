@@ -73,6 +73,13 @@ struct Chunk{
   uint8_t flags;                // a set of flag to represent certain states 
 };
 
+/*
+// and this struct to handle an entire file (array?) of chunks
+struct Chunks{
+	Chunk *chunk_array[];
+};
+*/
+
 void read_bytes_(FILE *file, void *buf, size_t buf_cap, const char *src_file, int src_line)
 {
 	size_t n = fread(buf, buf_cap, 1, file);
@@ -249,11 +256,12 @@ int main(int argc, char **argv)
 			//printf("Chunk Bytes  : ");
 			//print_bytes(chunk_type, sizeof(chunk_type));
 			printf("Chunk CRC    : 0x%08X\n", chunk_crc);
-			printf("chunk Length : %u\n", chunk_len);
+			printf("Chunk Length : %u\n", chunk_len);
 
 			//check if chunk type is tEXt by casting the 4-byte array as
 			//an int32 and immediately dereferencing it - #type_punning
-			if(*(uint32_t*)chunk_type == 0x74584574){
+			if(*(uint32_t*)chunk_type == 0x74584574
+				|| *(uint32_t*)chunk_type == 0x65566968){
 				printf("Chunk Data   : ");
 				for(int i = 0; i < (int)sizeof(chunk_data); i++){
 	        //TODO: determine what to do with chunk_data_'string'
@@ -262,7 +270,6 @@ int main(int argc, char **argv)
 					//printf("%c", chunk_data_str[i]);
 					chunk_data_str[i] = (char)chunk_data[i];
 					printf("%c", chunk_data_str[i]);
-					//printf("Chunk Data   : %.*s\n", (int)sizeof(chunk_data), chunk_data); 
 				}
 				printf("\n");
 			}
@@ -276,6 +283,8 @@ int main(int argc, char **argv)
 		fclose(input_file);
 		return 0;
 	}else{
+		// optional output was provided: copy file by chunks and inject
+		// our own chunk in the process
 		char *out_filepath = *argv++;
 		FILE *output_file = fopen(out_filepath, "wb");
 		if (output_file == NULL){
@@ -310,7 +319,7 @@ int main(int argc, char **argv)
 		while(!quit)
 		{ // global boolean for dirty control
 
-		/* chunk Structure: ---| length (data) | type | data | crc |--- */
+		/* Chunk Structure: ---| Length (data) | Type | Data | CRC |--- */
 
 			/* length: 4-byte uint, (# of bytes in chunk data field) */
 			uint32_t chunk_len;  
@@ -342,31 +351,40 @@ int main(int argc, char **argv)
 			read_bytes(input_file, &chunk_crc, sizeof(chunk_crc));
 			write_bytes(output_file, &chunk_crc, sizeof(chunk_crc));
 
+			/* Injecting custom chunk after IHDR */
+			if(*(uint32_t*)chunk_type == 0x52444849){
+				uint32_t inject_sz = 13;
+				flip_bytes(&inject_sz, sizeof(inject_sz));
+				write_bytes(output_file, &inject_sz, sizeof(inject_sz));
+				flip_bytes(&inject_sz, sizeof(inject_sz));
+				char *inject_type = "hiVe";
+				write_bytes(output_file, inject_type, 4);
+				//unsigned char *inject_data = "Hello, world!";
+				//write_bytes(output_file, &inject_data, inject_sz);
+				write_bytes(output_file, "Hello, world!", inject_sz);
+				//uint32_t inject_crc = crc(inject_data, inject_sz);
+				uint32_t inject_crc = crc("Hello, world!", inject_sz);
+				write_bytes(output_file, &inject_crc, sizeof(inject_crc));
+			}
+
+
 			//display captured values
 			printf("Chunk Type   : %.*s (0x%08X)\n",
 							(int)sizeof(chunk_type), chunk_type, *(uint32_t*) chunk_type); 
 			//printf("Chunk Bytes  : ");
 			//print_bytes(chunk_type, sizeof(chunk_type));
 			printf("Chunk CRC    : 0x%08X\n", chunk_crc);
-			printf("chunk Length : %u\n", chunk_len);
+			printf("Chunk Length : %u\n", chunk_len);
 
 			//check if chunk type is tEXt by casting the 4-byte array as an int32 and 
 			//immediately dereferencing it - #type_punning
-			if(*(uint32_t*)chunk_type == 0x74584574){
-
-				//flip_bytes(&chunk_data, sizeof(chunk_data));
-				//print_bytes(chunk_data, sizeof(chunk_data));
+			if(*(uint32_t*)chunk_type == 0x74584574 
+				|| *(uint32_t*)chunk_type == 0x65566968){
 				printf("Chunk Data   : ");
 				for(int i = 0; i < (int)sizeof(chunk_data); i++){
-
 	        //TODO: determine what to do with chunk_data_'string'
-					//if(i % 16 == 0) printf("\n");
-					//chunk_data_str[i] = (char)chunk_data[i];
-					//printf("%c", chunk_data_str[i]);
-
 					chunk_data_str[i] = (char)chunk_buf[i];
 					printf("%c", chunk_data_str[i]);
-					//printf("Chunk Data   : %.*s\n", (int)sizeof(chunk_data), chunk_data); 
 				}
 				printf("\n");
 			}
