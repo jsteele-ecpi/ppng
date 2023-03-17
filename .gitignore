@@ -1,2 +1,10 @@
 *.vs\
 *.vsidx
+*.sqlite
+.vs/ProjectSettings.json
+.vs/ppng/v17/ipch/AutoPCH/93918ab2d027c1c7/PPNG.ipch
+.vs/ppng/v17/Browse.VC.opendb
+.vs/ppng/v17/Browse.VC.db-wal
+.vs/ppng/v17/Browse.VC.db
+.vs/ppng/v17/Browse.VC.db-shm
+.vs/ppng/FileContentIndex/read.lock
